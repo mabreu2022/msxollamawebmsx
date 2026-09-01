@@ -156,6 +156,24 @@ class WebMSXOllamaBridge {
   }
 
   /**
+   * Captura o texto atual exibido na tela/VDP do MSX
+   */
+  getScreenText() {
+    try {
+      const wmsx = this.getWMSX();
+      if (wmsx && wmsx.room && wmsx.room.screen && typeof wmsx.room.screen.getScreenText === 'function') {
+        return wmsx.room.screen.getScreenText() || '';
+      }
+      if (wmsx && wmsx.room && wmsx.room.machine && wmsx.room.machine.vdp && typeof wmsx.room.machine.vdp.getScreenText === 'function') {
+        return wmsx.room.machine.vdp.getScreenText() || '';
+      }
+    } catch (e) {
+      console.warn('Erro ao obter texto da tela do MSX:', e);
+    }
+    return '';
+  }
+
+  /**
    * Processa comandos interceptados vindos do MSX BASIC
    */
   async processMSXCommand(line) {

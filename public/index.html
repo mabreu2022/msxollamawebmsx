@@ -150,6 +150,22 @@
                 </button>
               </div>
             </div>
+
+            <!-- Seção do Depurador & Correção Automática de Código -->
+            <div class="debugger-section">
+              <div class="debugger-header">
+                <span>🔧 Depurador & Correção Automática com IA</span>
+              </div>
+              <div class="debugger-controls">
+                <input type="text" id="debug-error-input" placeholder="Descreva o erro ou ajuste (Ex: Deu Syntax error na linha 70 / Mude para SCREEN 2)..." />
+                <button id="btn-capture-screen" class="btn btn-capture" title="Lê a tela do MSX e detecta mensagens de erro automaticamente">
+                  📺 Capturar Erro da Tela MSX
+                </button>
+                <button id="btn-fix-code" class="btn btn-debug" title="A IA analisa o código atual e o erro relatado para corrigir o programa">
+                  🔧 Corrigir Código
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -466,6 +482,83 @@
       btnClearCode.addEventListener('click', () => {
         basicCodeEditor.value = '';
         addLog('[STUDIO] Editor limpo.');
+      });
+
+      // 8. Capturar Mensagem de Erro da Tela do MSX
+      const debugErrorInput = document.getElementById('debug-error-input');
+      const btnCaptureScreen = document.getElementById('btn-capture-screen');
+      const btnFixCode = document.getElementById('btn-fix-code');
+
+      btnCaptureScreen.addEventListener('click', () => {
+        const screenText = bridge.getScreenText();
+        if (!screenText || screenText.trim().length === 0) {
+          addLog('[DEBUGGER AVISO] Não foi possível ler o texto da tela ou ela está vazia.', 'warn');
+          return;
+        }
+
+        // Procura por mensagens clássicas de erro no MSX (ex: "Syntax error in 70")
+        const errorMatch = screenText.match(/(?:Syntax\s+error|Type\s+mismatch|Undefined\s+line|Out\s+of\s+data|Illegal\s+function\s+call|Overflow|Out\s+of\s+memory|Undefined\s+statement|Subscript\s+out\s+of\s+range|Duplicate\s+Definition|Division\s+by\s+zero|Illegal\s+direct|Type\s+mismatch|Out\s+of\s+string\s+space|String\s+too\s+long|String\s+formula\s+too\s+complex|Can't\s+CONTINUE|Undefined\s+user\s+function|No\s+RESUME|RESUME\s+without\s+error|Unprintable\s+error|Missing\s+operand|Line\s+buffer\s+overflow)[^\r\n]*/i);
+
+        if (errorMatch) {
+          debugErrorInput.value = errorMatch[0].trim();
+          addLog(`[DEBUGGER] Erro detectado na tela do MSX: "${debugErrorInput.value}"`, 'warn');
+        } else {
+          // Captura as últimas linhas visíveis na tela
+          const lines = screenText.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          const lastLines = lines.slice(-2).join(' | ');
+          if (lastLines) {
+            debugErrorInput.value = lastLines;
+            addLog(`[DEBUGGER] Texto recente capturado da tela: "${lastLines}"`);
+          } else {
+            addLog('[DEBUGGER AVISO] Nenhum erro evidente encontrado na tela.');
+          }
+        }
+      });
+
+      // 9. Corrigir Código com IA
+      btnFixCode.addEventListener('click', async () => {
+        const code = basicCodeEditor.value.trim();
+        if (!code) {
+          addLog('[DEBUGGER AVISO] O editor de código está vazio.', 'warn');
+          return;
+        }
+
+        const errorPrompt = debugErrorInput.value.trim();
+        const screenText = bridge.getScreenText();
+
+        btnFixCode.disabled = true;
+        btnFixCode.textContent = '⏳ Corrigindo...';
+        addLog(`[DEBUGGER] Analisando e corrigindo código com IA (${modelSelect.value})...`);
+
+        try {
+          const res = await fetch('/api/fix-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: code,
+              errorPrompt: errorPrompt,
+              screenText: screenText,
+              model: modelSelect.value
+            })
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Falha ao corrigir o código.');
+          }
+
+          basicCodeEditor.value = data.fixedCode;
+          addLog(`[DEBUGGER] Código corrigido com sucesso em ${data.durationMs}ms! Clique em 'Injetar & Rodar'.`, 'success');
+        } catch (err) {
+          addLog(`[DEBUGGER ERRO] ${err.message}`, 'error');
+        } finally {
+          btnFixCode.disabled = false;
+          btnFixCode.textContent = '🔧 Corrigir Código';
+        }
+      });
+
+      debugErrorInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btnFixCode.click();
       });
     });
   </script>

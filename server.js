@@ -345,6 +345,76 @@ app.post('/api/generate-code', async (req, res) => {
   }
 });
 
+/**
+ * Rota: Depurador e Corretor Automático de Código MSX BASIC
+ * Recebe o código com erro + descrição do erro ou texto da tela do MSX e devolve o código corrigido.
+ */
+app.post('/api/fix-code', async (req, res) => {
+  const { code, errorPrompt = '', screenText = '', model = DEFAULT_MODEL } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ error: 'O código atual é obrigatório para correção.' });
+  }
+
+  console.log(`[DEBUGGER] Corrigindo código MSX BASIC com erro: "${errorPrompt || screenText}"`);
+
+  try {
+    const fixSystemPrompt = 
+      'Voce e um depurador e especialista senior em MSX BASIC (1983, Z80).\n' +
+      'Sua tarefa e analisar o codigo MSX BASIC fornecido pelo usuario, identificar e corrigir o erro relatado (ex: Syntax error, Type mismatch, Subscript out of range, Overflow, Out of string space, FOR/NEXT incorreto, problemas de VDP ou SCREEN, etc.).\n' +
+      'REGRAS ESTRITAS:\n' +
+      '1. Mantenha a numeracao de linhas (10, 20, 30...).\n' +
+      '2. Use comandos em letras MAIUSCULAS compativeis com MSX1 e MSX2.\n' +
+      '3. Nao use acentos ou caracteres especiais Unicode.\n' +
+      '4. Se o erro for de string space, inclua CLEAR 4000 no inicio.\n' +
+      '5. Retorne EXCLUSIVAMENTE o codigo MSX BASIC corrigido e 100% funcional, sem markdown, sem explicacoes e sem introducoes.';
+
+    const userContent = 
+      `CODIGO ATUAL COM ERRO:\n${code}\n\n` +
+      (errorPrompt ? `DESCRICAO DO ERRO / SOLICITACAO: ${errorPrompt}\n` : '') +
+      (screenText ? `TEXTO CAPTURADO DA TELA DO MSX:\n${screenText}\n` : '');
+
+    const ollamaPayload = {
+      model: model,
+      prompt: userContent,
+      system: fixSystemPrompt,
+      stream: false,
+      keep_alive: '60m',
+      options: {
+        num_gpu: 99,
+        main_gpu: 0,
+        temperature: 0.2, // Baixa temperatura para correção de código precisa
+        num_predict: 500
+      }
+    };
+
+    const startTime = Date.now();
+    const data = await queryOllama('/api/generate', 'POST', ollamaPayload);
+    const durationMs = Date.now() - startTime;
+    let raw = data.response || '';
+
+    // Remove blocos markdown se existirem
+    raw = raw.replace(/^```[a-z]*\n?/gim, '').replace(/\n?```$/gim, '').trim();
+    const fixedCode = sanitizeForMSX(raw);
+
+    console.log(`[DEBUGGER] Código corrigido com sucesso em ${durationMs}ms`);
+
+    res.json({
+      success: true,
+      fixedCode: fixedCode,
+      model: data.model,
+      durationMs: durationMs
+    });
+
+  } catch (error) {
+    console.error(`[DEBUGGER ERROR] Falha ao corrigir código: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Inicializacao do servidor
 const server = app.listen(PORT, () => {
   console.log('====================================================');
