@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebMSX & Ollama LLM Bridge</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Configuracao Global do WebMSX Embutido -->
+  <script>
+    window.WMSX = {
+      MACHINE: "MSX1",
+      SCREEN_ELEMENT_ID: "wmsx-screen",
+      SCREEN_FULLSCREEN_MODE: 0,
+      PRINTER_ACTIVE: true,
+      SCREEN_DEFAULT_SCALE: 1,
+      SCREEN_VSYNC_MODE: 1,
+      AUTORUN_COMMANDS: ""
+    };
+  </script>
+  <!-- Carregamento do Core do WebMSX (CDN Oficial com fallback de iframe) -->
+  <script src="https://webmsx.org/wmsx.js" onerror="console.warn('Falha ao carregar WebMSX CDN. Usando iframe fallback.');"></script>
+</head>
+<body>
+
+  <!-- Header / Barra Superior -->
+  <header>
+    <div class="logo-group">
+      <span class="msx-badge">MSX</span>
+      <h1>WebMSX & Ollama AI Bridge</h1>
+    </div>
+    <div class="header-status">
+      <div class="status-pill">
+        <span id="status-dot" class="status-indicator"></span>
+        <span id="status-text">Conectando ao Ollama...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Layout Principal -->
+  <main>
+    <!-- Coluna Esquerda: Tela do Emulador WebMSX e Controles -->
+    <section class="emulator-section">
+      <div class="screen-container" id="screen-box">
+        <!-- Container principal do WebMSX embutido localmente (Same-Origin) -->
+        <iframe id="wmsx-frame" src="webmsx.html" allow="autoplay; gamepad" style="width: 100%; height: 100%; border: none; background: #000;"></iframe>
+      </div>
+
+      <!-- Barra de Abas de Modos de Uso -->
+      <div class="tab-bar">
+        <button id="tab-btn-chat" class="tab-btn active">
+          💬 Chat & Terminal MSX
+        </button>
+        <button id="tab-btn-studio" class="tab-btn">
+          💻 MSX BASIC Studio & Gerador .ROM
+        </button>
+      </div>
+
+      <!-- Aba 1: Chat & Terminal Interativo -->
+      <div id="tab-content-chat" class="tab-content active">
+        <!-- Barra de Controle do Emulador & Bridge -->
+        <div class="emulator-controls">
+          <div class="btn-group">
+            <button id="btn-load-bas" class="btn btn-primary" title="Injeta o código CHAT.BAS no MSX e roda automaticamente">
+              ⚡ Auto-Carregar CHAT.BAS
+            </button>
+            <button id="btn-screen0" class="btn" title="Configura o MSX em SCREEN 0 (40 Colunas)">
+              🖥️ Set SCREEN 0
+            </button>
+            <button id="btn-reset-msx" class="btn" title="Reinicia o MSX">
+              🔄 Reset MSX
+            </button>
+          </div>
+
+          <div class="btn-group">
+            <button id="btn-clear-logs" class="btn">
+              🧹 Limpar Console
+            </button>
+          </div>
+        </div>
+
+        <!-- Barra de Envio Rápido de Prompt via Host (Web HUD) -->
+        <div class="prompt-bar">
+          <input type="text" id="hud-prompt-input" placeholder="Digite uma pergunta para enviar ao MSX + Ollama (Ex: Quem foi Jack Tramiel?)..." />
+          <button id="btn-send-prompt" class="btn btn-success">
+            Enviar ao MSX
+          </button>
+        </div>
+      </div>
+
+      <!-- Aba 2: MSX BASIC Studio & Gerador de ROM -->
+      <div id="tab-content-studio" class="tab-content">
+        <div class="studio-card">
+          <div class="card-title">🪄 Gerar Código MSX BASIC com IA</div>
+          
+          <div class="studio-input-bar">
+            <input type="text" id="ai-code-prompt" placeholder="Descreva o que deseja (Ex: Crie um jogo de adivinhar o numero com efeito sonoro BEEP)..." />
+            <button id="btn-generate-code" class="btn btn-primary">
+              🪄 Gerar Código
+            </button>
+          </div>
+
+          <div class="code-editor-container">
+            <label for="basic-code-editor" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">
+              Código Fonte MSX BASIC (editável):
+            </label>
+            <textarea id="basic-code-editor" class="code-textarea" spellcheck="false">10 REM ====================================
+20 REM  EXEMPLO DE JOGO MSX BASIC
+30 REM ====================================
+40 COLOR 15,1,1: SCREEN 1: CLS
+50 PRINT "============================="
+60 PRINT "  ADIVINHE O NUMERO (1-100)  "
+70 PRINT "============================="
+80 S = INT(RND(1)*100) + 1: T = 0
+90 PRINT
+100 PRINT "DIGITE SEU PALPITE:"
+110 INPUT P
+120 T = T + 1
+130 IF P = S THEN GOTO 200
+140 IF P < S THEN PRINT "MUITO BAIXO! TENTE MAIOR.": SOUND 7,180: GOTO 100
+150 IF P > S THEN PRINT "MUITO ALTO! TENTE MENOR.": SOUND 7,180: GOTO 100
+200 PRINT: PRINT "*** PARABENS! VOCE ACERTOU! ***"
+210 PRINT "TENTATIVAS:"; T
+220 SOUND 0,100: SOUND 1,0: SOUND 7,182
+230 END</textarea>
+
+            <!-- Barra de Ações do Código -->
+            <div class="code-toolbar">
+              <div class="btn-group">
+                <button id="btn-run-code" class="btn btn-success" title="Limpa o MSX, digita o código do editor e executa (RUN)">
+                  ⚡ Injetar & Rodar no MSX
+                </button>
+                <button id="btn-save-bas" class="btn" title="Baixa o arquivo .BAS para usar no MSX">
+                  💾 Salvar .BAS
+                </button>
+                <button id="btn-save-rom" class="btn btn-rom" title="Gera e baixa um arquivo .ROM de Cartucho de 16KB">
+                  🕹️ Gerar & Baixar .ROM (16KB)
+                </button>
+              </div>
+
+              <div class="btn-group">
+                <button id="btn-copy-code" class="btn" title="Copia o código para a área de transferência">
+                  📋 Copiar
+                </button>
+                <button id="btn-paste-code" class="btn" title="Cola o código da área de transferência">
+                  📥 Colar
+                </button>
+                <button id="btn-clear-code" class="btn" title="Limpa o editor">
+                  🧹 Limpar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coluna Direita: Sidebar com Configurações e Logs em Tempo Real -->
+    <aside class="sidebar">
+      <!-- Card: Configurações do Modelo Ollama -->
+      <div class="card">
+        <div class="card-title">⚙️ Configurações Ollama</div>
+        
+        <div class="form-group">
+          <label for="model-select">Modelo Local:</label>
+          <select id="model-select">
+            <option value="llama3">llama3</option>
+            <option value="phi3">phi3</option>
+            <option value="mistral">mistral</option>
+            <option value="gemma2">gemma2</option>
+            <option value="deepseek-r1">deepseek-r1</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="bridge-url">Status do Host:</label>
+          <input type="text" id="bridge-url" value="http://localhost:3000" readonly />
+        </div>
+      </div>
+
+      <!-- Card: Monitor de Comunicação e Logs -->
+      <div class="card" style="flex: 1;">
+        <div class="card-title">📡 Monitor de Tráfego MSX & Bridge</div>
+        <div class="log-console" id="log-console"></div>
+      </div>
+
+      <!-- Card: Instruções Rápidas -->
+      <div class="card">
+        <div class="card-title">📖 Guia Rápido</div>
+        <ul class="instructions-list">
+          <li>Clique em <strong>Auto-Carregar CHAT.BAS</strong> para digitar e rodar o programa no MSX.</li>
+          <li>No MSX, digite seu prompt no <code>INPUT</code> e aperte <strong>ENTER</strong>.</li>
+          <li>O comando <code>LPRINT</code> sinaliza a pergunta para o Bridge.</li>
+          <li>O Bridge sanitiza para ASCII, formata em 40 colunas e injeta no MSX.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Rodapé -->
+  <footer>
+    WebMSX & Ollama Bridge Middleware &bull; Projetado para computação retro MSX &bull; Node.js + Express
+  </footer>
+
+  <!-- Script da Bridge de Integração e Gerador de ROM -->
+  <script src="msx_rom_builder.js"></script>
+  <script src="bridge.js"></script>
+
+  <!-- Script de Inicialização da Interface Web -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const logConsole = document.getElementById('log-console');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+      const modelSelect = document.getElementById('model-select');
+      const btnLoadBas = document.getElementById('btn-load-bas');
+      const btnScreen0 = document.getElementById('btn-screen0');
+      const btnResetMsx = document.getElementById('btn-reset-msx');
+      const btnClearLogs = document.getElementById('btn-clear-logs');
+      const promptInput = document.getElementById('hud-prompt-input');
+      const btnSendPrompt = document.getElementById('btn-send-prompt');
+
+      // Elementos do Studio & Gerador .ROM
+      const tabBtnChat = document.getElementById('tab-btn-chat');
+      const tabBtnStudio = document.getElementById('tab-btn-studio');
+      const tabContentChat = document.getElementById('tab-content-chat');
+      const tabContentStudio = document.getElementById('tab-content-studio');
+      const aiCodePrompt = document.getElementById('ai-code-prompt');
+      const btnGenerateCode = document.getElementById('btn-generate-code');
+      const basicCodeEditor = document.getElementById('basic-code-editor');
+      const btnRunCode = document.getElementById('btn-run-code');
+      const btnSaveBas = document.getElementById('btn-save-bas');
+      const btnSaveRom = document.getElementById('btn-save-rom');
+      const btnCopyCode = document.getElementById('btn-copy-code');
+      const btnPasteCode = document.getElementById('btn-paste-code');
+      const btnClearCode = document.getElementById('btn-clear-code');
+
+      // Alternância de Abas
+      tabBtnChat.addEventListener('click', () => {
+        tabBtnChat.classList.add('active');
+        tabBtnStudio.classList.remove('active');
+        tabContentChat.classList.add('active');
+        tabContentStudio.classList.remove('active');
+      });
+
+      tabBtnStudio.addEventListener('click', () => {
+        tabBtnStudio.classList.add('active');
+        tabBtnChat.classList.remove('active');
+        tabContentStudio.classList.add('active');
+        tabContentChat.classList.remove('active');
+      });
+
+      // Logger no Console Visual
+      function addLog(msg, type = '') {
+        const time = new Date().toLocaleTimeString();
+        const div = document.createElement('div');
+        div.className = `log-entry ${type}`;
+        div.textContent = `[${time}] ${msg}`;
+        logConsole.appendChild(div);
+        logConsole.scrollTop = logConsole.scrollHeight;
+      }
+
+      // Inicializa a Bridge
+      const bridge = new WebMSXOllamaBridge({
+        apiBaseUrl: '',
+        onLog: (msg) => {
+          let type = '';
+          if (msg.includes('ERRO')) type = 'error';
+          else if (msg.includes('AVISO')) type = 'warn';
+          else if (msg.includes('sucesso') || msg.includes('conectado') || msg.includes('Recebida')) type = 'success';
+          addLog(msg, type);
+        },
+        onStatusChange: (status) => {
+          if (status.online) {
+            statusDot.className = 'status-indicator online';
+            statusText.textContent = `Ollama Online (${status.models.length} modelos)`;
+            
+            // Popula o select com os modelos reais instalados no Ollama
+            if (status.models && status.models.length > 0) {
+              modelSelect.innerHTML = '';
+              status.models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.name;
+                opt.textContent = m.name;
+                if (m.name.includes('llama3') || m.name === status.defaultModel) {
+                  opt.selected = true;
+                }
+                modelSelect.appendChild(opt);
+              });
+              bridge.currentModel = modelSelect.value;
+            }
+          } else {
+            statusDot.className = 'status-indicator';
+            statusText.textContent = 'Ollama Offline / Erro';
+          }
+        }
+      });
+
+      // Mudança de modelo
+      modelSelect.addEventListener('change', () => {
+        bridge.currentModel = modelSelect.value;
+        addLog(`[BRIDGE] Modelo selecionado: ${bridge.currentModel}`);
+      });
+
+      // Ações dos botões da Aba Chat
+      btnLoadBas.addEventListener('click', () => {
+        bridge.autoLoadChatBas();
+      });
+
+      btnScreen0.addEventListener('click', () => {
+        const ok = bridge.injectResponseIntoMSX('SCREEN 0: WIDTH 40: CLS');
+        if (ok) {
+          addLog('[MSX] Comando enviado: SCREEN 0: WIDTH 40: CLS');
+        } else {
+          addLog('[MSX AVISO] WebMSX ainda carregando. Aguarde o boot.');
+        }
+      });
+
+      btnResetMsx.addEventListener('click', () => {
+        const wmsx = bridge.getWMSX();
+        if (wmsx && wmsx.room && wmsx.room.machine) {
+          wmsx.room.machine.reset();
+          addLog('[MSX] Máquina reiniciada (RESET)');
+        }
+      });
+
+      btnClearLogs.addEventListener('click', () => {
+        logConsole.innerHTML = '';
+      });
+
+      // Envio de prompt pela barra HUD
+      function triggerSend() {
+        const prompt = promptInput.value.trim();
+        if (!prompt) return;
+        promptInput.value = '';
+        addLog(`[HUD] Enviando prompt ao MSX: "${prompt}"`);
+        
+        // Digita o prompt no LINE INPUT do MSX e pressiona Enter (\r)
+        const wmsx = bridge.getWMSX();
+        if (wmsx && wmsx.room && wmsx.room.keyboard) {
+          wmsx.room.keyboard.typeString(`${prompt}\r`);
+        } else if (wmsx && wmsx.room && wmsx.room.machineControls) {
+          wmsx.room.machineControls.processControlState(301, true, false, `${prompt}\r`);
+        } else {
+          bridge.sendPromptToOllama(prompt, modelSelect.value);
+        }
+      }
+
+      btnSendPrompt.addEventListener('click', triggerSend);
+      promptInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') triggerSend();
+      });
+
+      // ======================================================================
+      // Ações da Aba MSX BASIC Studio & Gerador de ROM
+      // ======================================================================
+
+      // 1. Gerar Código com IA
+      btnGenerateCode.addEventListener('click', async () => {
+        const prompt = aiCodePrompt.value.trim();
+        if (!prompt) {
+          addLog('[STUDIO AVISO] Digite a descrição do programa que deseja gerar.', 'warn');
+          return;
+        }
+
+        btnGenerateCode.disabled = true;
+        btnGenerateCode.textContent = '⏳ Gerando...';
+        addLog(`[STUDIO] Solicitando geracao de codigo MSX BASIC: "${prompt}"...`);
+
+        try {
+          const res = await fetch('/api/generate-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: prompt,
+              model: modelSelect.value
+            })
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Falha ao gerar código.');
+          }
+
+          basicCodeEditor.value = data.code;
+          addLog(`[STUDIO] Código gerado com sucesso em ${data.durationMs}ms!`, 'success');
+        } catch (err) {
+          addLog(`[STUDIO ERRO] ${err.message}`, 'error');
+        } finally {
+          btnGenerateCode.disabled = false;
+          btnGenerateCode.textContent = '🪄 Gerar Código';
+        }
+      });
+
+      aiCodePrompt.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btnGenerateCode.click();
+      });
+
+      // 2. Injetar e Rodar no MSX ao vivo
+      btnRunCode.addEventListener('click', () => {
+        const code = basicCodeEditor.value.trim();
+        if (!code) {
+          addLog('[STUDIO AVISO] O editor está vazio.', 'warn');
+          return;
+        }
+
+        const wmsx = bridge.getWMSX();
+        if (!wmsx || !wmsx.room) {
+          addLog('[STUDIO ERRO] WebMSX não está pronto. Aguarde o boot.', 'error');
+          return;
+        }
+
+        const script = `\r\nNEW\r\n${code}\r\nRUN\r\n`;
+
+        if (wmsx.room.keyboard && typeof wmsx.room.keyboard.typeString === 'function') {
+          wmsx.room.keyboard.typeString(script);
+          addLog('[STUDIO] Programa injetado e executado (RUN) no MSX!', 'success');
+        } else if (wmsx.room.machineControls) {
+          wmsx.room.machineControls.processControlState(301, true, false, script);
+          addLog('[STUDIO] Programa injetado via machineControls!', 'success');
+        }
+      });
+
+      // 3. Salvar como arquivo .BAS
+      btnSaveBas.addEventListener('click', () => {
+        const code = basicCodeEditor.value.trim();
+        if (!code) return addLog('[STUDIO AVISO] Editor vazio.', 'warn');
+        MSXRomBuilder.downloadAsBas(code, 'MEU_PROGRAMA.BAS');
+        addLog('[STUDIO] Download de MEU_PROGRAMA.BAS iniciado.', 'success');
+      });
+
+      // 4. Gerar e Baixar .ROM (16KB Bootável)
+      btnSaveRom.addEventListener('click', () => {
+        const code = basicCodeEditor.value.trim();
+        if (!code) return addLog('[STUDIO AVISO] Editor vazio.', 'warn');
+        MSXRomBuilder.downloadAsRom(code, 'MEU_PROGRAMA.ROM');
+        addLog('[STUDIO] Cartucho .ROM (16KB) gerado e baixado com sucesso!', 'success');
+      });
+
+      // 5. Copiar Código
+      btnCopyCode.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(basicCodeEditor.value);
+          addLog('[STUDIO] Código copiado para a área de transferência!', 'success');
+        } catch (e) {
+          basicCodeEditor.select();
+          document.execCommand('copy');
+          addLog('[STUDIO] Código copiado!', 'success');
+        }
+      });
+
+      // 6. Colar Código
+      btnPasteCode.addEventListener('click', async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            basicCodeEditor.value = text;
+            addLog('[STUDIO] Código colado no editor!', 'success');
+          }
+        } catch (e) {
+          addLog('[STUDIO AVISO] Cole com Ctrl+V diretamente no editor.', 'warn');
+        }
+      });
+
+      // 7. Limpar Editor
+      btnClearCode.addEventListener('click', () => {
+        basicCodeEditor.value = '';
+        addLog('[STUDIO] Editor limpo.');
+      });
+    });
+  </script>
+</body>
+</html>
