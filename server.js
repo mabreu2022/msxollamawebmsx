@@ -90,6 +90,29 @@ function queryOllama(endpoint, method = 'GET', data = null) {
 }
 
 /**
+ * Garante que apenas UM modelo fique carregado na VRAM da GPU NVIDIA de 4GB,
+ * evitando que múltiplos modelos concorram pela memória e causem lentidão.
+ */
+async function ensureSingleModelLoaded(targetModel) {
+  try {
+    const psData = await queryOllama('/api/ps', 'GET');
+    if (psData && psData.models) {
+      for (const m of psData.models) {
+        if (m.name !== targetModel && m.model !== targetModel) {
+          console.log(`[VRAM OPTIMIZER] Descarregando modelo inativo "${m.name}" da GPU...`);
+          await queryOllama('/api/generate', 'POST', {
+            model: m.name,
+            keep_alive: 0
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // Silencia se o endpoint /api/ps falhar
+  }
+}
+
+/**
  * Normaliza e sanitiza o texto retornado pelo LLM para compatibilidade com o charset do MSX.
  * Converte acentuacoes para ASCII simples, substitui pontuacoes especiais Unicode
  * e remove caracteres que nao existem no VDP/BIOS padrao do MSX (SCREEN 0).
@@ -206,13 +229,16 @@ app.get('/api/health', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   const { prompt, model = DEFAULT_MODEL, maxCols = 38, systemPrompt } = req.body;
 
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: 'O campo "prompt" e obrigatorio e deve ser uma string.' });
+  if (!prompt) {
+    return res.status(400).json({ error: 'O prompt é obrigatório.' });
   }
 
-  console.log(`[BRIDGE] Prompt recebido do MSX: "${prompt.trim()}" (Modelo: ${model})`);
+  console.log(`[BRIDGE] Prompt recebido do MSX: "${prompt}" (Modelo: ${model})`);
 
   try {
+    // Descarrega outros modelos inativos da VRAM de 4GB para velocidade máxima
+    await ensureSingleModelLoaded(model);
+
     const baseSystemPrompt = systemPrompt || 
       'Voce e a IA do computador retro MSX (1983). ' +
       'Responda SEMPRE em no maximo 2 frases curtas, concisas e diretas, ' +
@@ -223,12 +249,13 @@ app.post('/api/chat', async (req, res) => {
       prompt: prompt,
       system: baseSystemPrompt,
       stream: false,
-      keep_alive: '60m', // Mantem o modelo carregado na VRAM da NVIDIA GTX 1630
+      keep_alive: '60m',
       options: {
-        num_gpu: 99, // Forca 100% das camadas na GPU NVIDIA
+        num_gpu: 99,
         main_gpu: 0,
+        num_ctx: 2048, // Otimizado para caber com folga na VRAM de 4GB
         temperature: 0.4,
-        num_predict: 80, // Respostas curtas e ultrarrapidas para tela do MSX
+        num_predict: 80,
         top_k: 40,
         top_p: 0.9
       }
@@ -290,12 +317,15 @@ app.post('/api/generate-code', async (req, res) => {
     return res.status(400).json({ error: 'O prompt é obrigatório.' });
   }
 
-  console.log(`[STUDIO] Gerando código MSX BASIC para: "${prompt}"`);
+  console.log(`[STUDIO] Gerando código MSX BASIC para: "${prompt}" (Modelo: ${model})`);
 
   try {
+    // Descarrega outros modelos inativos da VRAM
+    await ensureSingleModelLoaded(model);
+
     const codeSystemPrompt = 
       'Voce e um especialista em MSX BASIC (computador 8-bits Z80 de 1983). ' +
-      'Crie um programa completo, divertido e funcional em MSX BASIC compativel com MSX1 e MSX2. ' +
+      'Crie um programa completo, direto e funcional em MSX BASIC compativel com MSX1 e MSX2. ' +
       'REGRAS ESTRITAS:\n' +
       '1. Use numeracao de linha obrigatoria (10, 20, 30...).\n' +
       '2. Use comandos em letras MAIUSCULAS (SCREEN, COLOR, CLS, PRINT, FOR, NEXT, IF, THEN, GOTO, GOSUB, RETURN, LOCATE, SOUND, PLAY, INPUT).\n' +
@@ -311,8 +341,9 @@ app.post('/api/generate-code', async (req, res) => {
       options: {
         num_gpu: 99,
         main_gpu: 0,
+        num_ctx: 2048,
         temperature: 0.3, // Mais determinístico para código
-        num_predict: 400
+        num_predict: 350
       }
     };
 
@@ -356,9 +387,12 @@ app.post('/api/fix-code', async (req, res) => {
     return res.status(400).json({ error: 'O código atual é obrigatório para correção.' });
   }
 
-  console.log(`[DEBUGGER] Corrigindo código MSX BASIC com erro: "${errorPrompt || screenText}"`);
+  console.log(`[DEBUGGER] Corrigindo código MSX BASIC com erro: "${errorPrompt || screenText}" (Modelo: ${model})`);
 
   try {
+    // Descarrega outros modelos inativos da VRAM
+    await ensureSingleModelLoaded(model);
+
     const fixSystemPrompt = 
       'Voce e um depurador e especialista senior em MSX BASIC (1983, Z80).\n' +
       'Sua tarefa e analisar o codigo MSX BASIC fornecido pelo usuario, identificar e corrigir o erro relatado (ex: Syntax error, Type mismatch, Subscript out of range, Overflow, Out of string space, FOR/NEXT incorreto, problemas de VDP ou SCREEN, etc.).\n' +
@@ -383,8 +417,9 @@ app.post('/api/fix-code', async (req, res) => {
       options: {
         num_gpu: 99,
         main_gpu: 0,
+        num_ctx: 2048,
         temperature: 0.2, // Baixa temperatura para correção de código precisa
-        num_predict: 500
+        num_predict: 350
       }
     };
 
