@@ -151,17 +151,23 @@
               </div>
             </div>
 
-            <!-- Seção do Depurador & Correção Automática de Código -->
+            <!-- Seção do Depurador & Correção Automática de Código com Memória -->
             <div class="debugger-section">
               <div class="debugger-header">
-                <span>🔧 Depurador & Correção Automática com IA</span>
+                <span>🔧 Depurador & Correção com Memória do MSX</span>
+                <span id="last-code-badge" class="memory-badge" title="Último código enviado para o WebMSX">
+                  📦 Memória: Nenhum código enviado
+                </span>
               </div>
               <div class="debugger-controls">
                 <input type="text" id="debug-error-input" placeholder="Descreva o erro ou ajuste (Ex: Deu Syntax error na linha 70 / Mude para SCREEN 2)..." />
                 <button id="btn-capture-screen" class="btn btn-capture" title="Lê a tela do MSX e detecta mensagens de erro automaticamente">
                   📺 Capturar Erro da Tela MSX
                 </button>
-                <button id="btn-fix-code" class="btn btn-debug" title="A IA analisa o código atual e o erro relatado para corrigir o programa">
+                <button id="btn-restore-last" class="btn btn-capture" title="Restaura o último código que foi injetado no MSX">
+                  ⏪ Restaurar da Memória
+                </button>
+                <button id="btn-fix-code" class="btn btn-debug" title="A IA analisa o código da memória + o erro para corrigir o programa">
                   🔧 Corrigir Código
                 </button>
               </div>
@@ -440,9 +446,11 @@
 
         if (wmsx.room.keyboard && typeof wmsx.room.keyboard.typeString === 'function') {
           wmsx.room.keyboard.typeString(script);
-          addLog('[STUDIO] Programa injetado e executado (RUN) no MSX!', 'success');
+          saveToMSXMemory(code);
+          addLog('[STUDIO] Programa injetado e gravado na memória do MSX!', 'success');
         } else if (wmsx.room.machineControls) {
           wmsx.room.machineControls.processControlState(301, true, false, script);
+          saveToMSXMemory(code);
           addLog('[STUDIO] Programa injetado via machineControls!', 'success');
         }
       });
@@ -494,7 +502,48 @@
         addLog('[STUDIO] Editor limpo.');
       });
 
-      // 8. Capturar Mensagem de Erro da Tela do MSX
+      // 8. Gestão de Memória do Código Injetado no MSX
+      let lastSentCode = localStorage.getItem('msx_last_sent_code') || '';
+      
+      function updateMemoryBadge() {
+        const badge = document.getElementById('last-code-badge');
+        if (!badge) return;
+        if (lastSentCode && lastSentCode.trim().length > 0) {
+          const lines = lastSentCode.trim().split('\n').length;
+          badge.textContent = `📦 Memória: ${lines} linhas ativas`;
+          badge.style.color = '#10b981';
+          badge.style.borderColor = '#10b981';
+        } else {
+          badge.textContent = `📦 Memória: Nenhum código`;
+          badge.style.color = '#94a3b8';
+          badge.style.borderColor = '#334155';
+        }
+      }
+
+      function saveToMSXMemory(code) {
+        if (!code || code.trim().length === 0) return;
+        lastSentCode = code.trim();
+        localStorage.setItem('msx_last_sent_code', lastSentCode);
+        updateMemoryBadge();
+      }
+
+      // Inicializa o badge de memória
+      updateMemoryBadge();
+
+      // Botão: Restaurar Último Código Enviado da Memória
+      const btnRestoreLast = document.getElementById('btn-restore-last');
+      if (btnRestoreLast) {
+        btnRestoreLast.addEventListener('click', () => {
+          if (lastSentCode && lastSentCode.trim().length > 0) {
+            flashCodeEditorUpdate(lastSentCode);
+            addLog('[STUDIO] Último código enviado ao MSX restaurado no editor!', 'success');
+          } else {
+            addLog('[STUDIO AVISO] Nenhum código gravado na memória do MSX ainda.', 'warn');
+          }
+        });
+      }
+
+      // 9. Capturar Mensagem de Erro da Tela do MSX
       const debugErrorInput = document.getElementById('debug-error-input');
       const btnCaptureScreen = document.getElementById('btn-capture-screen');
       const btnFixCode = document.getElementById('btn-fix-code');
@@ -525,11 +574,13 @@
         }
       });
 
-      // 9. Corrigir Código com IA
+      // 10. Corrigir Código com IA (Usando a Memória do Último Código Enviado)
       btnFixCode.addEventListener('click', async () => {
-        const code = basicCodeEditor.value.trim();
-        if (!code) {
-          addLog('[DEBUGGER AVISO] O editor de código está vazio.', 'warn');
+        const currentEditorCode = basicCodeEditor.value.trim();
+        const codeToFix = currentEditorCode || lastSentCode;
+
+        if (!codeToFix) {
+          addLog('[DEBUGGER AVISO] O editor está vazio e nenhum código foi encontrado na memória do MSX.', 'warn');
           return;
         }
 
@@ -538,14 +589,15 @@
 
         btnFixCode.disabled = true;
         btnFixCode.textContent = '⏳ Corrigindo...';
-        addLog(`[DEBUGGER] Analisando e corrigindo código com IA (${modelSelect.value})...`);
+        addLog(`[DEBUGGER] Analisando memória do MSX e corrigindo código com IA (${modelSelect.value})...`);
 
         try {
           const res = await fetch('/api/fix-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              code: code,
+              code: currentEditorCode,
+              lastSentCode: lastSentCode,
               errorPrompt: errorPrompt,
               screenText: screenText,
               model: modelSelect.value
@@ -558,7 +610,8 @@
           }
 
           flashCodeEditorUpdate(data.fixedCode);
-          addLog(`[DEBUGGER] Código corrigido com sucesso em ${data.durationMs}ms! Novo código carregado no editor.`, 'success');
+          saveToMSXMemory(data.fixedCode);
+          addLog(`[DEBUGGER] Código corrigido com sucesso em ${data.durationMs}ms! Memória e editor atualizados.`, 'success');
         } catch (err) {
           addLog(`[DEBUGGER ERRO] ${err.message}`, 'error');
         } finally {

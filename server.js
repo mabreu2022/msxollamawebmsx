@@ -381,13 +381,15 @@ app.post('/api/generate-code', async (req, res) => {
  * Recebe o código com erro + descrição do erro ou texto da tela do MSX e devolve o código corrigido.
  */
 app.post('/api/fix-code', async (req, res) => {
-  const { code, errorPrompt = '', screenText = '', model = DEFAULT_MODEL } = req.body;
+  const { code, lastSentCode = '', errorPrompt = '', screenText = '', model = DEFAULT_MODEL } = req.body;
 
-  if (!code) {
-    return res.status(400).json({ error: 'O código atual é obrigatório para correção.' });
+  const targetCode = code || lastSentCode;
+
+  if (!targetCode) {
+    return res.status(400).json({ error: 'Nenhum código foi fornecido ou encontrado na memória para correção.' });
   }
 
-  console.log(`[DEBUGGER] Corrigindo código MSX BASIC com erro: "${errorPrompt || screenText}" (Modelo: ${model})`);
+  console.log(`[DEBUGGER] Corrigindo código MSX BASIC (Memória de ${targetCode.split('\n').length} linhas) para erro: "${errorPrompt || screenText}" (Modelo: ${model})`);
 
   try {
     // Descarrega outros modelos inativos da VRAM
@@ -395,7 +397,7 @@ app.post('/api/fix-code', async (req, res) => {
 
     const fixSystemPrompt = 
       'Voce e um depurador e especialista senior em MSX BASIC (1983, Z80).\n' +
-      'Sua tarefa e analisar o codigo MSX BASIC fornecido pelo usuario, identificar e corrigir o erro relatado (ex: Syntax error, Type mismatch, Subscript out of range, Overflow, Out of string space, FOR/NEXT incorreto, problemas de VDP ou SCREEN, etc.).\n' +
+      'Sua tarefa e analisar o codigo MSX BASIC fornecido pelo usuario (que foi o programa enviado e executado no emulador WebMSX), identificar e corrigir o erro relatado ou capturado da tela (ex: Syntax error, Type mismatch, Subscript out of range, Overflow, Out of string space, FOR/NEXT incorreto, problemas de VDP ou SCREEN, etc.).\n' +
       'REGRAS ESTRITAS:\n' +
       '1. Mantenha a numeracao de linhas (10, 20, 30...).\n' +
       '2. Use comandos em letras MAIUSCULAS compativeis com MSX1 e MSX2.\n' +
@@ -403,10 +405,20 @@ app.post('/api/fix-code', async (req, res) => {
       '4. Se o erro for de string space, inclua CLEAR 4000 no inicio.\n' +
       '5. Retorne EXCLUSIVAMENTE o codigo MSX BASIC corrigido e 100% funcional, sem markdown, sem explicacoes e sem introducoes.';
 
-    const userContent = 
-      `CODIGO ATUAL COM ERRO:\n${code}\n\n` +
-      (errorPrompt ? `DESCRICAO DO ERRO / SOLICITACAO: ${errorPrompt}\n` : '') +
-      (screenText ? `TEXTO CAPTURADO DA TELA DO MSX:\n${screenText}\n` : '');
+    let userContent = '';
+    if (lastSentCode && lastSentCode.trim() !== targetCode.trim()) {
+      userContent += `ULTIMO CODIGO INJETADO NO MSX:\n${lastSentCode}\n\n`;
+      userContent += `CODIGO ATUAL NO EDITOR:\n${targetCode}\n\n`;
+    } else {
+      userContent += `CODIGO EXECUTADO NO MSX COM ERRO:\n${targetCode}\n\n`;
+    }
+
+    if (errorPrompt) {
+      userContent += `DESCRICAO DO ERRO / SOLICITACAO: ${errorPrompt}\n`;
+    }
+    if (screenText) {
+      userContent += `TEXTO CAPTURADO DA TELA DO MSX:\n${screenText}\n`;
+    }
 
     const ollamaPayload = {
       model: model,
