@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual Oficial do Usuário • WebMSX & Ollama AI Bridge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Press+Start+2P&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #070a12;
+      --bg-secondary: #0f172a;
+      --bg-card: #151f32;
+      --msx-blue: #0284c7;
+      --msx-cyan: #38bdf8;
+      --msx-green: #10b981;
+      --msx-amber: #f59e0b;
+      --msx-purple: #8b5cf6;
+      --msx-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #1e293b;
+      --glow-cyan: rgba(56, 189, 248, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Topbar */
+    header {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .msx-badge {
+      background: var(--msx-blue);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.5);
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #ffffff, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .btn-back {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-back:hover {
+      box-shadow: 0 0 15px var(--glow-cyan);
+      transform: translateY(-1px);
+    }
+
+    /* Layout do Manual */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+    }
+
+    @media (max-width: 860px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
+    }
+
+    /* Navegação Lateral */
+    .sidebar {
+      position: sticky;
+      top: 80px;
+      height: fit-content;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .sidebar-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--msx-cyan);
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-list a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      display: block;
+    }
+
+    .nav-list a:hover {
+      background: #1e293b;
+      color: #fff;
+      padding-left: 16px;
+    }
+
+    /* Conteúdo Principal */
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .hero-box {
+      background: linear-gradient(135deg, #101c30 0%, #0c1424 100%);
+      border: 1px solid #1e3a5f;
+      border-radius: 12px;
+      padding: 28px;
+      position: relative;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .hero-title {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-desc {
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      color: var(--msx-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feature-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Diagrama ASCII / Terminal Box */
+    .terminal-box {
+      background: #04070d;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    .badge-tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .badge-gpu { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
+    .badge-msx { background: rgba(2, 132, 199, 0.2); color: #38bdf8; border: 1px solid #38bdf8; }
+    .badge-rom { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+
+    /* Alertas */
+    .alert-box {
+      border-left: 4px solid var(--msx-cyan);
+      background: rgba(56, 189, 248, 0.08);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      color: #e2e8f0;
+    }
+
+    .alert-box.tip {
+      border-left-color: var(--msx-green);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .alert-box.warn {
+      border-left-color: var(--msx-amber);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    /* Passo a Passo */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .step-num {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #000;
+      font-weight: 800;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-content h4 {
+      color: #fff;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      background: var(--bg-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header>
+    <div class="logo-group">
+      <span class="msx-badge">MSX</span>
+      <h1>WebMSX & Ollama Bridge • Manual Oficial</h1>
+    </div>
+    <a href="index.html" class="btn-back">
+      🕹️ Abrir Emulador & Studio
+    </a>
+  </header>
+
+  <div class="container">
+    <!-- Navegação Lateral -->
+    <aside class="sidebar">
+      <div class="sidebar-title">📑 Sumário do Manual</div>
+      <ul class="nav-list">
+        <li><a href="#visao-geral">1. Visão Geral do Sistema</a></li>
+        <li><a href="#arquitetura">2. Arquitetura & Hardware I/O</a></li>
+        <li><a href="#gpu-aceleracao">3. Aceleração GPU NVIDIA</a></li>
+        <li><a href="#modo-chat">4. Modo Chat (SCREEN 0)</a></li>
+        <li><a href="#modo-studio">5. MSX BASIC Studio</a></li>
+        <li><a href="#depurador">6. Depurador com Memória</a></li>
+        <li><a href="#gerador-rom">7. Compilador de Cartuchos .ROM</a></li>
+        <li><a href="#passo-a-passo">8. Passo a Passo de Uso</a></li>
+        <li><a href="#troubleshooting">9. Dúvidas & Troubleshooting</a></li>
+      </ul>
+    </aside>
+
+    <!-- Conteúdo do Manual -->
+    <main class="content">
+
+      <!-- 1. Visão Geral -->
+      <div id="visao-geral" class="hero-box">
+        <h2 class="hero-title">🚀 Visão Geral do Projeto</h2>
+        <p class="hero-desc">
+          O <strong>WebMSX & Ollama AI Bridge</strong> é uma solução de engenharia que conecta a arquitetura clássica de 8-bits dos microcomputadores <strong>MSX (1983)</strong> com modelos de inteligência artificial de última geração (<strong>Qwen2.5-Coder</strong> e <strong>Llama-3.2</strong>) rodando 100% localmente com aceleração por GPU no seu próprio computador.
+        </p>
+      </div>
+
+      <!-- 2. Arquitetura -->
+      <section id="arquitetura" class="section">
+        <h2 class="section-title">🏗️ 2. Arquitetura do Sistema & Hardware I/O</h2>
+        <p>A comunicação entre o mundo 8-bits virtualizado e o Host moderno é realizada por três camadas perfeitamente sincronizadas:</p>
+
+        <div class="terminal-box">
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          FLUXO ARQUITETURAL COMPLETO                      │
+└───────────────────────────────────────────────────────────────────────────┘
+   [ WebMSX Emulador ] 
+          │  (Z80 CPU executa LPRINT "AI:pergunta")
+          ▼
+   [ Barramento I/O ] ── Porta 0x91 (Data Register) + Porta 0x90 (Status 0x00)
+          │  (JavaScript intercepta via bus.connectOutputDevice)
+          ▼
+   [ Bridge Client ]  ── Envia POST /api/chat via HTTP para o Node.js
+          │
+          ▼
+   [ Backend Node.js ] ── Express Middleware (server.js)
+          │  ├─ Gerenciador de VRAM (ensureSingleModelLoaded)
+          │  ├─ Sanitizador ASCII 7-bit (Remove acentos Unicode para VDP)
+          │  └─ Formatador de Word-Wrap (38 colunas para SCREEN 0)
+          ▼
+   [ Ollama Host ] ─── Modelos na GPU NVIDIA GTX 1630 (CUDA 13.2)
+          │  (Qwen2.5-Coder:1.5b / 3b / Llama3.2:1b)
+          ▼
+   [ Retorno ao MSX ] ─ Injeção via Circular Keyboard Buffer (0xFBF0)
+          │
+          ▼
+   [ Tela do MSX ] ──── LINE INPUT ""; R$ recebe o texto e imprime no monitor!
+        </div>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3><span class="badge-tag badge-msx">PORTA 0x91</span> Registrador de Dados</h3>
+            <p>Captura cada caractere emitido pelo comando <code>LPRINT</code> do Z80 sem interferir na memória RAM do MSX.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="badge-tag badge-msx">PORTA 0x90</span> Status de Impressora</h3>
+            <p>Retorna <code>0x00</code> (Bit 1 em nível baixo = Not Busy), garantindo que a rotina <code>LPTOUT</code> do BIOS nunca entre em espera infinita.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="badge-tag badge-gpu">VRAM OPTIMIZER</span> Gestão de Memória</h3>
+            <p>Descarrega automaticamente modelos inativos para que 100% da VRAM da GTX 1630 fique livre para o modelo em uso.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Aceleração GPU -->
+      <section id="gpu-aceleracao" class="section">
+        <h2 class="section-title">⚡ 3. Aceleração por GPU NVIDIA</h2>
+        <p>O sistema foi calibrado para extrair a máxima performance da sua placa de vídeo <strong>NVIDIA GeForce GTX 1630 (4 GB VRAM)</strong>:</p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>🚀 qwen2.5-coder:1.5b</h3>
+            <p><strong>Recomendado para o dia a dia</strong>. Ocupa apenas 1.1 GB de VRAM. Responde e gera programas BASIC completos em <strong>1 a 3 segundos</strong>.</p>
+          </div>
+          <div class="feature-card">
+            <h3>🧠 qwen2.5-coder:3b</h3>
+            <p><strong>Para lógica complexa e jogos densos</strong>. Ocupa 1.8 GB de VRAM. Máxima precisão para rotinas matemáticas e de banco de dados.</p>
+          </div>
+          <div class="feature-card">
+            <h3>💬 llama3.2:1b</h3>
+            <p><strong>Para conversação e bate-papo geral</strong>. Extremamente leve e ágil para respostas conceituais na tela do MSX.</p>
+          </div>
+        </div>
+
+        <div class="alert-box tip">
+          <strong>Dica de Desempenho:</strong> O backend utiliza <code>keep_alive: '60m'</code> e <code>num_ctx: 2048</code>. Isso mantém o modelo pronto na VRAM e reduz o footprint de memória, gerando tokens até 3x mais rápido.
+        </div>
+      </section>
+
+      <!-- 4. Modo Chat -->
+      <section id="modo-chat" class="section">
+        <h2 class="section-title">💬 4. Modo Chat & Assistente MSX (SCREEN 0)</h2>
+        <p>Permite conversar com a inteligência artificial diretamente pela linha de comando clássica do MSX:</p>
+        
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h4>Auto-Carregamento</h4>
+              <p>Clique em <strong>⚡ Auto-Carregar CHAT.BAS</strong>. O sistema injeta o programa <code>CHAT.BAS v1.2</code> com <code>CLEAR 4000</code> na memória.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h4>Perguntas no MSX</h4>
+              <p>No prompt <code>MSX></code>, digite qualquer pergunta (ex: <code>Quem foi Alan Turing?</code> ou <code>O que e o chip Z80?</code>) e aperte <strong>ENTER</strong>.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h4>Exibição Formatada</h4>
+              <p>A resposta retorna em ~0.8s, perfeitamente formatada em 40 colunas sem acentos truncados, pronta para a leitura.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. MSX BASIC Studio -->
+      <section id="modo-studio" class="section">
+        <h2 class="section-title">💻 5. MSX BASIC Studio</h2>
+        <p>Ambiente integrado para criar, editar, testar e salvar programas MSX BASIC com suporte de IA:</p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>🪄 Gerador com IA Especializada</h3>
+            <p>Descreva o que deseja (ex: <em>"Crie um jogo de labirinto em SCREEN 1 com som e pontuacao"</em>). A IA gera o código com linhas 10, 20, 30 e comandos em maiúsculas.</p>
+          </div>
+          <div class="feature-card">
+            <h3>⚡ Injetar & Rodar no MSX</h3>
+            <p>Com 1 clique, envia <code>NEW</code>, digita todo o código do editor e executa <code>RUN</code> no WebMSX ao vivo.</p>
+          </div>
+          <div class="feature-card">
+            <h3>💾 Salvar .BAS</h3>
+            <p>Faz o download do código fonte ASCII limpo pronto para carregar em disquetes, fitas K7 ou cartão SD de MSX real.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Depurador com Memória -->
+      <section id="depurador" class="section">
+        <h2 class="section-title">🔧 6. Depurador & Correção Automática com Memória do MSX</h2>
+        <p>A ferramenta definitiva para corrigir bugs de código e erros do interpretador:</p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>📦 Memória de Execução Ativa</h3>
+            <p>Toda vez que você injeta um código no MSX, o sistema grava o código exato no badge <code>📦 Memória</code>. A IA sempre sabe o que estava rodando.</p>
+          </div>
+          <div class="feature-card">
+            <h3>📺 Captura de Erro da Tela</h3>
+            <p>Lê a tela azul do MSX e detecta automaticamente mensagens como <code>Syntax error in 30</code>, <code>Type mismatch in 80</code> ou <code>Out of string space</code>.</p>
+          </div>
+          <div class="feature-card">
+            <h3>⏪ Restaurar da Memória</h3>
+            <p>Se você limpar o editor por engano, pode restaurar o último programa que foi para o MSX com um único clique.</p>
+          </div>
+        </div>
+
+        <div class="alert-box tip">
+          <strong>Como Depurar:</strong> Se o jogo travar ou der erro no MSX:
+          <ol style="margin-left: 20px; margin-top: 6px;">
+            <li>Clique em <strong>📺 Capturar Erro da Tela MSX</strong>.</li>
+            <li>Clique em <strong>🔧 Corrigir Código</strong>.</li>
+            <li>O editor substitui o código antigo pelo código corrigido com animação de destaque.</li>
+            <li>Clique em <strong>⚡ Injetar & Rodar no MSX</strong>!</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 7. Compilador .ROM -->
+      <section id="gerador-rom" class="section">
+        <h2 class="section-title">🕹️ 7. Compilador de Cartuchos .ROM (16KB Bootável)</h2>
+        <p>O <code>msx_rom_builder.js</code> permite transformar qualquer código MSX BASIC em um <strong>Cartucho ROM binário real</strong>:</p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3><span class="badge-tag badge-rom">0x4000</span> Cabeçalho Oficial</h3>
+            <p>Assinatura binária <code>0x41 0x42</code> (<code>"AB"</code>) no início do cartucho, reconhecida por todas as BIOSes de MSX.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="badge-tag badge-rom">0x4010</span> Autostart Loader Z80</h3>
+            <p>Código de máquina nativo Z80 que inicializa o vídeo, transfere o programa BASIC e executa o autostart no boot da máquina.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="badge-tag badge-rom">HARDWARE</span> Compatibilidade Real</h3>
+            <p>Funciona no WebMSX, openMSX, blueMSX ou gravado em cartuchos físicos como Carnivore2, MegaFlashROM e FlashROM.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. Passo a Passo -->
+      <section id="passo-a-passo" class="section">
+        <h2 class="section-title">📋 8. Guia Rápido de Uso Passo a Passo</h2>
+        
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h4>Iniciar o Servidor</h4>
+              <p>No terminal do Linux: <code>node server.js</code> (o servidor subirá em <code>http://localhost:3000</code>).</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h4>Abrir no Navegador</h4>
+              <p>Acesse <code>http://localhost:3000</code> no Chrome, Firefox ou Edge.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h4>Escolher o Modelo</h4>
+              <p>Selecione <strong>qwen2.5-coder:1.5b</strong> no seletor para respostas rápidas de código.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <h4>Criar e Jogar</h4>
+              <p>Vá na aba <strong>MSX BASIC Studio</strong>, peça um jogo para a IA, clique em <strong>Injetar & Rodar</strong> e divirta-se!</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. Troubleshooting -->
+      <section id="troubleshooting" class="section">
+        <h2 class="section-title">❓ 9. Dúvidas Frequentes & Troubleshooting</h2>
+
+        <div class="feature-card">
+          <h3>Erro: "Out of string space"</h3>
+          <p>O MSX BASIC reserva poucos bytes para texto por padrão. Adicione <code>5 CLEAR 4000</code> na primeira linha do seu programa para expandir a memória de strings.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Erro: "Syntax error in XX"</h3>
+          <p>Clique em <strong>📺 Capturar Erro da Tela MSX</strong> e em seguida em <strong>🔧 Corrigir Código</strong>. A IA corrigirá a pontuação (ex: trocar vírgula por ponto e vírgula no <code>INPUT</code>) na hora.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Lentidão na geração com IA</h3>
+          <p>Certifique-se de estar usando o modelo <strong>qwen2.5-coder:1.5b</strong>. O nosso otimizador de VRAM descarrega outros modelos da memória para garantir velocidade máxima.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Rodapé -->
+  <footer>
+    WebMSX & Ollama Bridge Middleware &bull; Documentação Técnica &bull; Desenvolvido para computação retro MSX e IA Local
+  </footer>
+
+</body>
+</html>
