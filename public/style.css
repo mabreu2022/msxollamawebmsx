@@ -543,3 +543,23 @@ footer {
   background: #334155;
   color: #fff;
 }
+
+/* Animacao de destaque quando o codigo e atualizado no editor */
+@keyframes codePulse {
+  0% {
+    border-color: #10b981;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
+  }
+  50% {
+    border-color: #38bdf8;
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.7);
+  }
+  100% {
+    border-color: #28374d;
+    box-shadow: none;
+  }
+}
+
+.code-updated-pulse {
+  animation: codePulse 1.8s ease-out;
+}
